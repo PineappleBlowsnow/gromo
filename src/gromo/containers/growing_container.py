@@ -137,7 +137,7 @@ class GrowingContainer(torch.nn.Module):
 
         for idx, layer in enumerate(self._growing_layers):
             if idx != best_layer_idx:
-                layer.delete_update()
+                layer.delete_update() # WHY？？
         return self.currently_updated_layer_index
 
     def dummy_select_update(self, **_: dict) -> int:

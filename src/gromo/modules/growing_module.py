@@ -2414,9 +2414,12 @@ class GrowingModule(torch.nn.Module):
             "Use compute_optimal_delta before."
         )
         if self.eigenvalues_extension is not None:
-            return (
-                self.parameter_update_decrease
-                + self.activation_gradient * (self.eigenvalues_extension**2).sum()
+            # return (
+            #     self.parameter_update_decrease
+            #     + self.activation_gradient * (self.eigenvalues_extension**2).sum()
+            # )
+            return ( #temporary replace by real expre bottleneck
+                self.activation_gradient * (self.eigenvalues_extension**2).sum()
             )
         else:
             return self.parameter_update_decrease
