@@ -140,6 +140,29 @@ class GrowingContainer(torch.nn.Module):
                 layer.delete_update() # WHY？？
         return self.currently_updated_layer_index
 
+    def select_best_update_expressivity(self) -> int:
+        """Select the layer with the largest expressivity bottleneck.
+
+        Identical to ``select_best_update`` except the ranking key is
+        ``expressivity_bottleneck`` (the new-neuron extension term only) instead of
+        the full ``first_order_improvement``. The applied growth is unchanged; only
+        the selected layer differs.
+        """
+        expressivity_bottlenecks: list[torch.Tensor] = [
+            layer.expressivity_bottleneck for layer in self._growing_layers
+        ]
+        best_layer_idx = torch.argmax(torch.stack(expressivity_bottlenecks))
+        self.currently_updated_layer_index = best_layer_idx.item()
+        assert isinstance(self.currently_updated_layer_index, int), (
+            "Currently updated layer index is not an integer"
+            f" but {type(self.currently_updated_layer_index)}"
+        )
+
+        for idx, layer in enumerate(self._growing_layers):
+            if idx != best_layer_idx:
+                layer.delete_update()
+        return self.currently_updated_layer_index
+
     def dummy_select_update(self, **_: dict) -> int:
         """Placeholder function for selecting update
 

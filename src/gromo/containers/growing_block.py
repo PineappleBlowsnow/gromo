@@ -585,6 +585,20 @@ class GrowingBlock(GrowingContainer):
         """
         return self.second_layer.first_order_improvement
 
+    @property
+    def expressivity_bottleneck(self) -> torch.Tensor:
+        """
+        Get the expressivity-bottleneck part of the first order improvement of the
+        block (the new-neuron extension term only, excluding the existing-weight
+        optimal-move gain). Used as a layer-selection criterion.
+
+        Returns
+        -------
+        torch.Tensor
+            expressivity bottleneck
+        """
+        return self.second_layer.expressivity_bottleneck
+
     def create_layer_extensions(
         self,
         extension_size: int,

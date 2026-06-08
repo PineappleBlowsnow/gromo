@@ -2414,15 +2414,39 @@ class GrowingModule(torch.nn.Module):
             "Use compute_optimal_delta before."
         )
         if self.eigenvalues_extension is not None:
-            # return (
-            #     self.parameter_update_decrease
-            #     + self.activation_gradient * (self.eigenvalues_extension**2).sum()
-            # )
-            return ( #temporary replace by real expre bottleneck
-                self.activation_gradient * (self.eigenvalues_extension**2).sum()
-            )
+            return (
+                 self.parameter_update_decrease
+                 + self.activation_gradient * (self.eigenvalues_extension**2).sum()
+             )
         else:
             return self.parameter_update_decrease
+
+    @property
+    def expressivity_bottleneck(self) -> torch.Tensor:
+        """
+        Get the expressivity-bottleneck part of the first order improvement, i.e.
+        the gain attributable ONLY to the newly added neurons (the extension term),
+        excluding the optimal-update "move" gain on the existing weights
+        (``parameter_update_decrease``).
+
+        This is exactly ``first_order_improvement`` with the first term removed and
+        is used as a layer-selection criterion. It does NOT affect the applied
+        growth (``compute_optimal_updates`` / ``parameter_update_decrease`` are
+        unchanged); only the ranking key differs.
+
+        Returns
+        -------
+        torch.Tensor
+            expressivity bottleneck (activation_gradient * sum(eigenvalues_extension**2))
+        """
+        assert self.parameter_update_decrease is not None, (
+            "The expressivity bottleneck is not computed. "
+            "Use compute_optimal_delta before."
+        )
+        if self.eigenvalues_extension is not None:
+            return self.activation_gradient * (self.eigenvalues_extension**2).sum()
+        else:
+            return torch.zeros((), device=self.device, dtype=self.weight.dtype)
 
     def compute_optimal_updates(
         self,
