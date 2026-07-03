@@ -561,24 +561,33 @@ class ResNetBasicBlock(SequentialGrowingModel):
             output_block_kernel_size=output_block_kernel_size,
         )
 
-        # Initialize weights based on init_method
-        if init_method == "zero":
-            torch.nn.init.zeros_(new_block.second_layer.layer.weight)
-            if new_block.second_layer.layer.bias is not None:
-                torch.nn.init.zeros_(new_block.second_layer.layer.bias)
-        elif init_method.startswith("gauss"):
-            std = 1.0
-            if "_" in init_method:
-                try:
-                    std = float(init_method.split("_")[-1])
-                except ValueError:
-                    std = 1.0
-            torch.nn.init.normal_(new_block.first_layer.layer.weight, mean=0.0, std=std)
-            if new_block.first_layer.layer.bias is not None:
-                torch.nn.init.zeros_(new_block.first_layer.layer.bias)
-            torch.nn.init.normal_(new_block.second_layer.layer.weight, mean=0.0, std=std)
-            if new_block.second_layer.layer.bias is not None:
-                torch.nn.init.zeros_(new_block.second_layer.layer.bias)
+        # Initialize weights based on init_method (targeting trailing BN only)
+        if init_method != "default":
+            bn = getattr(new_block.second_layer, "post_layer_function", None)
+            if not isinstance(bn, (GrowingBatchNorm2d, GrowingGroupNorm,
+                                     nn.BatchNorm2d, nn.GroupNorm)):
+                raise ValueError(
+                    "init_method requires a trailing BatchNorm on the block's second layer "
+                    f"(got {type(bn).__name__ if bn is not None else 'None'}); only classical post-activation ResNet blocks are supported."
+                )
+            if init_method == "zero":
+                torch.nn.init.zeros_(bn.weight)
+                if bn.bias is not None:
+                    torch.nn.init.zeros_(bn.bias)
+            elif init_method.startswith("gauss"):
+                std = 1.0
+                if "_" in init_method:
+                    try:
+                        std = float(init_method.split("_")[-1])
+                    except ValueError:
+                        std = 1.0
+                torch.nn.init.normal_(bn.weight, mean=0.0, std=std)
+                if "full" in init_method:
+                    if bn.bias is not None:
+                        torch.nn.init.normal_(bn.bias, mean=0.0, std=std)
+                else:
+                    if bn.bias is not None:
+                        torch.nn.init.zeros_(bn.bias)
 
         stage.append(new_block)
         if not self.use_preactivation:
