@@ -246,6 +246,7 @@ def gradient_descent(
     dataloader_seed: int | None = None,
     device: torch.device = torch.device("cpu"),
     scheduler_step_granularity: Literal["epoch", "batch"] = "epoch",
+    gradient_callback=None,
 ) -> tuple[float, float]:
     """
     Train the model on the train_dataloader using classic gradient descent.
@@ -309,6 +310,8 @@ def gradient_descent(
         )
 
         loss.backward()
+        if gradient_callback is not None:
+            gradient_callback(model=model, batch_idx=i)
         optimizer.step()
 
         # update metrics

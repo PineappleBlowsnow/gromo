@@ -524,7 +524,7 @@ class ResNetBasicBlock(SequentialGrowingModel):
         init_method : str
             Initialization method for the new block. Supported options are
             "default" (standard initialization), "zero" (ZeroInit),
-            "gauss" / "gauss_full" / "gauss_full_<std>" (Gaussian initialization).
+           "gauss_full" (Gaussian initialization).
 
         Raises
         ------
@@ -582,12 +582,8 @@ class ResNetBasicBlock(SequentialGrowingModel):
                     except ValueError:
                         std = 1.0
                 torch.nn.init.normal_(bn.weight, mean=0.0, std=std)
-                if "full" in init_method:
-                    if bn.bias is not None:
-                        torch.nn.init.normal_(bn.bias, mean=0.0, std=std)
-                else:
-                    if bn.bias is not None:
-                        torch.nn.init.zeros_(bn.bias)
+                if bn.bias is not None:
+                    torch.nn.init.normal_(bn.bias, mean=0.0, std=std)
 
         stage.append(new_block)
         if not self.use_preactivation:
