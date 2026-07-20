@@ -524,7 +524,7 @@ class ResNetBasicBlock(SequentialGrowingModel):
         init_method : str
             Initialization method for the new block. Supported options are
             "default" (standard initialization), "zero" (ZeroInit),
-            "gauss" / "gauss_full" / "gauss_full_<std>" (Gaussian initialization).
+           "gauss_full" (Gaussian initialization).
 
         Raises
         ------
@@ -561,53 +561,35 @@ class ResNetBasicBlock(SequentialGrowingModel):
             output_block_kernel_size=output_block_kernel_size,
         )
 
-        self._init_appended_block(new_block, init_method)
+        # Initialize weights based on init_method (targeting trailing BN only)
+        if init_method != "default":
+            bn = getattr(new_block.second_layer, "post_layer_function", None)
+            if not isinstance(bn, (GrowingBatchNorm2d, GrowingGroupNorm,
+                                     nn.BatchNorm2d, nn.GroupNorm)):
+                raise ValueError(
+                    "init_method requires a trailing BatchNorm on the block's second layer "
+                    f"(got {type(bn).__name__ if bn is not None else 'None'}); only classical post-activation ResNet blocks are supported."
+                )
+            if init_method == "zero":
+                torch.nn.init.zeros_(bn.weight)
+                if bn.bias is not None:
+                    torch.nn.init.zeros_(bn.bias)
+            elif init_method.startswith("gauss"):
+                std = 1.0
+                if "_" in init_method:
+                    try:
+                        std = float(init_method.split("_")[-1])
+                    except ValueError:
+                        std = 1.0
+                torch.nn.init.normal_(bn.weight, mean=0.0, std=std)
+                if bn.bias is not None:
+                    torch.nn.init.normal_(bn.bias, mean=0.0, std=std)
 
         stage.append(new_block)
         if not self.use_preactivation:
             stage.append(self.activation)
         # Add the new block to the growing layers list
         self._growable_layers.append(new_block)
-
-    def _init_appended_block(self, block: Conv2dGrowingBlock, init_method: str) -> None:
-        """Initialise a freshly appended block, AutoGrow-style.
-
-        AutoGrow special-cases only the block's last normalisation layer; every
-        other layer (convs, first normalisation) keeps PyTorch's default init.
-        """
-        if init_method == "default":
-            return
-        bn = getattr(block.second_layer, "post_layer_function", None)
-        if not isinstance(
-            bn, (GrowingBatchNorm2d, GrowingGroupNorm, nn.BatchNorm2d, nn.GroupNorm)
-        ):
-            raise ValueError(
-                "init_method requires a trailing normalisation on the block's "
-                f"second layer (got {type(bn).__name__}); only classical "
-                "post-activation ResNet blocks are supported."
-            )
-        if init_method == "zero":
-            nn.init.zeros_(bn.weight)
-        elif init_method.startswith("gauss_full"):
-            std = 1.0
-            if init_method.startswith("gauss_full_"):
-                try:
-                    std = float(init_method.split("_")[-1])
-                except ValueError:
-                    std = 1.0
-            nn.init.normal_(bn.weight, mean=0.0, std=std)
-            if bn.bias is not None:
-                nn.init.normal_(bn.bias, mean=0.0, std=std)
-        elif init_method.startswith("gauss"):
-            std = 1.0
-            if init_method.startswith("gauss_"):
-                try:
-                    std = float(init_method.split("_")[-1])
-                except ValueError:
-                    std = 1.0
-            nn.init.normal_(bn.weight, mean=0.0, std=std)
-        else:
-            raise ValueError(f"Unknown init_method: {init_method!r}")
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """Forward function
