@@ -118,6 +118,7 @@ class SequentialGrowingModel(GrowingModel):
                 "update_value": layer.first_order_improvement.item(),
                 "parameter_improvement": layer.parameter_update_decrease.item(),
                 "eigenvalues_extension": layer.eigenvalues_extension,
+                "svd_singular_values": getattr(layer, "svd_singular_values", None),
             }
             information[i] = layer_information
         return information

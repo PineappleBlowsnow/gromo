@@ -875,6 +875,9 @@ class GrowingModule(torch.nn.Module):
         # of dA we have (with sigma the activation function in post_layer_function):
         # L(A + dA) = L(A) - t * sigma'(0) * (eigenvalues_extension ** 2).sum() + o(t)
         self.eigenvalues_extension: torch.Tensor | None = None
+        # Complete spectrum returned by the latest FoGRO SVD, before thresholding
+        # and the maximum-added-neurons cap.
+        self.svd_singular_values: torch.Tensor | None = None
         self._activation_gradient_previous_module: torch.Tensor | None = None
 
         self.delta_raw: torch.Tensor | None = None
@@ -2321,6 +2324,7 @@ class GrowingModule(torch.nn.Module):
             matrix_e = matrix_e.to(dtype=dtype)
 
         # Call tools function with primitive options
+        full_singular_values: list[torch.Tensor] = []
         alpha, omega, eigenvalues_extension = compute_optimal_added_parameters(
             matrix_s=matrix_s,
             matrix_n=matrix_n,
@@ -2331,11 +2335,13 @@ class GrowingModule(torch.nn.Module):
             omega_zero=omega_zero,
             ignore_singular_values=ignore_singular_values,
             matrix_covariance_loss_gradient=matrix_e,
+            full_singular_values=full_singular_values,
         )
 
         alpha = alpha.to(dtype=saved_dtype)
         omega = omega.to(dtype=saved_dtype)
         eigenvalues_extension = eigenvalues_extension.to(dtype=saved_dtype)
+        self.svd_singular_values = full_singular_values[0].to(dtype=saved_dtype)
 
         return alpha, omega, eigenvalues_extension
 
@@ -2682,6 +2688,7 @@ class GrowingModule(torch.nn.Module):
         # this type problem is due to the use of the setter to change the scaling factor
         self.parameter_update_decrease = None
         self.eigenvalues_extension = None
+        self.svd_singular_values = None
         self._pre_activity = None
         self._input = None
 

@@ -169,6 +169,11 @@ class GrowingBlock(GrowingContainer):
         return self.second_layer.eigenvalues_extension
 
     @property
+    def svd_singular_values(self) -> torch.Tensor | None:
+        """Get the complete, pre-selection SVD spectrum of the block."""
+        return self.second_layer.svd_singular_values
+
+    @property
     def parameter_update_decrease(self) -> torch.Tensor | None:
         """Get the parameter update decrease of the block
 

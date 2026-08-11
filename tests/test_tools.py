@@ -355,6 +355,23 @@ class TestTools(TorchTestCase):
         self.assertLessEqual(omega.shape[1], max_neurons)
         self.assertLessEqual(eigenvalues.shape[0], max_neurons)
 
+        # The optional diagnostics output keeps the complete spectrum even when
+        # the update itself is capped.
+        full_singular_values: list[torch.Tensor] = []
+        _, _, capped_eigenvalues = compute_optimal_added_parameters(
+            matrix_s,
+            matrix_n,
+            maximum_added_neurons=max_neurons,
+            full_singular_values=full_singular_values,
+        )
+        self.assertEqual(len(full_singular_values), 1)
+        self.assertEqual(full_singular_values[0].shape[0], min(matrix_n.shape))
+        self.assertEqual(capped_eigenvalues.shape[0], max_neurons)
+        self.assertAllClose(
+            capped_eigenvalues,
+            full_singular_values[0][:max_neurons],
+        )
+
         # Test case 4: Non-symmetric matrix (should trigger warning)
         matrix_s_nonsym = torch.tensor([[1.0, 0.5], [0.3, 1.0]])
         matrix_n = torch.tensor([[1.0], [1.0]])

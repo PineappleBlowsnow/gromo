@@ -174,6 +174,7 @@ def compute_optimal_added_parameters(
     omega_zero: bool = False,
     ignore_singular_values: bool = False,
     matrix_covariance_loss_gradient: torch.Tensor | None = None,
+    full_singular_values: list[torch.Tensor] | None = None,
 ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
     """
     Compute the optimal added parameters for a given layer.
@@ -205,6 +206,9 @@ def compute_optimal_added_parameters(
         applies the empirical-Fisher preconditioning to the rank-k extension.
         Note that this silently uses the independence hypothesis described in
         `first_order_optimization.typ` (`@hyp:independence`).
+    full_singular_values : list[torch.Tensor] | None
+        Optional output list. When provided, the complete SVD spectrum is appended
+        before statistical thresholding or the maximum-added-neurons cap.
 
     Returns
     -------
@@ -288,6 +292,11 @@ def compute_optimal_added_parameters(
         )
         print(f"matrix_p: {matrix_p.min()=}, {matrix_p.max()=}, {matrix_p.shape=}")
         raise e
+
+    # Expose the complete, pre-selection spectrum to callers that need diagnostics.
+    # The returned ``s`` below remains thresholded/capped for backward compatibility.
+    if full_singular_values is not None:
+        full_singular_values.append(s.detach().clone())
 
     # Select the singular values
     selected_singular_values = s >= min(statistical_threshold, s.max())
